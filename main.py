@@ -1,72 +1,122 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-from typing import Optional
-import random
-import time
 import uuid
+import time
+import logging
 
-app = FastAPI(title="Mock SBP API")
+app = FastAPI(title="Mock API СБП")
 
-# Модель запроса для перевода
+# --- ЛОГИ ---
+logging.basicConfig(level=logging.INFO)
+
+# --- МОДЕЛИ ---
 class TransferRequest(BaseModel):
     from_account: str
     to_account: str
     amount: float
-    purpose: Optional[str] = None
 
+# --- ХРАНИЛИЩА ---
+accounts = {
+    "user1": 50000.0,
+    "user2": 0.0,
+    "user3": 50000.0,
+    "user4": 50000.0
+}
+
+
+transactions = []
+
+# --- ROOT ---
 @app.get("/")
-async def index():
+async def root():
     return {"message": "Добро пожаловать в mock API СБП!"}
 
-# 📥 Тарификация
+# --- ТАРИФАЦИЯ ---
 @app.get("/tariff")
-async def get_tariff(amount: float = 0):
-    # Имитируем задержку ответа
-    time.sleep(random.uniform(0.1, 0.2))
-
-    if amount < 1000:
-        tariff = 0
-    elif amount < 10000:
-        tariff = amount * 0.005
+async def get_tariff(amount: float = Query(..., gt=0)):
+    time.sleep(0.5)  # Симуляция задержки
+    if amount <= 1000:
+        fee = 10
+    elif amount <= 5000:
+        fee = 30
     else:
-        tariff = amount * 0.01
+        fee = 50
+    return {"amount": amount, "fee": fee}
 
-    return {
-        "amount": amount,
-        "tariff": round(tariff, 2),
-        "currency": "RUB"
-    }
-
-# 💸 Проведение перевода
+# --- ПРОВЕДЕНИЕ ПЕРЕВОДА ---
 @app.post("/transfer")
-async def transfer_funds(req: TransferRequest):
-    # Имитируем задержку и обработку
-    time.sleep(random.uniform(0.1, 0.3))
+async def transfer(req: TransferRequest, test: bool = Query(False)):
+    logging.info(f"⏳ Запрос перевода: {req.from_account} → {req.to_account} | {req.amount}₽")
 
-    # 10% шанс отказа
-    if random.random() < 0.1:
-        return {
+    # Тестовый режим: задержка и отказ
+    if test:
+        time.sleep(2)
+        failed_tx = {
+            "id": str(uuid.uuid4()),
+            "from": req.from_account,
+            "to": req.to_account,
+            "amount": req.amount,
+            "status": "declined",
+            "reason": "Тестовый отказ",
+            "timestamp": time.time()
+        }
+        transactions.append(failed_tx)
+        logging.warning(f"⚠️ Отказ (тест): {failed_tx}")
+        return failed_tx
+
+    # Проверка баланса
+    sender_balance = accounts.get(req.from_account, 0)
+    if sender_balance < req.amount:
+        failed_tx = {
+            "id": str(uuid.uuid4()),
+            "from": req.from_account,
+            "to": req.to_account,
+            "amount": req.amount,
             "status": "declined",
             "reason": "Недостаточно средств",
-            "code": "DECLINE_FUNDS"
+            "timestamp": time.time()
         }
+        transactions.append(failed_tx)
+        logging.warning(f"❌ Отказ: {failed_tx}")
+        return failed_tx
 
-    transaction_id = str(uuid.uuid4())
-    return {
-        "status": "success",
-        "transaction_id": transaction_id,
+    # Проведение перевода
+    accounts[req.from_account] -= req.amount
+    accounts[req.to_account] = accounts.get(req.to_account, 0) + req.amount
+
+    success_tx = {
+        "id": str(uuid.uuid4()),
         "from": req.from_account,
         "to": req.to_account,
         "amount": req.amount,
-        "currency": "RUB"
+        "status": "success",
+        "timestamp": time.time()
     }
+    transactions.append(success_tx)
+    logging.info(f"✅ Успех: {success_tx}")
+    return success_tx
 
-# 📊 Получение баланса
+# --- ПОЛУЧЕНИЕ БАЛАНСА ---
 @app.get("/balance/{account_id}")
 async def get_balance(account_id: str):
-    balance = round(random.uniform(1000, 100000), 2)
+    balance = accounts.get(account_id)
+    if balance is None:
+        raise HTTPException(status_code=404, detail="Аккаунт не найден")
+    return {"account": account_id, "balance": balance}
+
+# --- ИСТОРИЯ ТРАНЗАКЦИЙ ---
+@app.get("/transactions")
+async def get_transactions():
+    return transactions
+
+# --- СТАТИСТИКА ---
+@app.get("/stats")
+async def stats():
+    total = len(transactions)
+    declined = sum(1 for tx in transactions if tx["status"] == "declined")
+    success_sum = sum(tx["amount"] for tx in transactions if tx["status"] == "success")
     return {
-        "account_id": account_id,
-        "balance": balance,
-        "currency": "RUB"
+        "total_transactions": total,
+        "declined": declined,
+        "successful_amount": success_sum
     }
