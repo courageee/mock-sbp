@@ -1,7 +1,9 @@
 import json
 import matplotlib.pyplot as plt
-from datetime import datetime
+from dateutil.parser import parse as parse_datetime
 from collections import Counter
+from datetime import datetime
+
 
 # Загрузка файла
 with open("results.json", "r", encoding="utf-8") as f:
@@ -17,7 +19,7 @@ for entry in data:
         entry.get("metric") == "http_req_duration"
     ):
         time_str = entry["data"]["time"]
-        timestamp = datetime.fromisoformat(time_str)
+        timestamp = parse_datetime(time_str)
         value = entry["data"]["value"]
         timestamps.append(timestamp)
         durations.append(value)

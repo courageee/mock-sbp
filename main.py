@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 import uuid
-import time
+import asyncio  # <-- заменили time.sleep на await asyncio.sleep
 import logging
 
 app = FastAPI(title="Mock API СБП")
@@ -22,8 +22,6 @@ accounts = {
     "user3": 50000.0,
     "user4": 50000.0
 }
-
-
 transactions = []
 
 # --- ROOT ---
@@ -34,7 +32,7 @@ async def root():
 # --- ТАРИФАЦИЯ ---
 @app.get("/tariff")
 async def get_tariff(amount: float = Query(..., gt=0)):
-    time.sleep(0.5)  # Симуляция задержки
+    await asyncio.sleep(0.5)  # <-- асинхронная задержка
     if amount <= 1000:
         fee = 10
     elif amount <= 5000:
@@ -50,7 +48,7 @@ async def transfer(req: TransferRequest, test: bool = Query(False)):
 
     # Тестовый режим: задержка и отказ
     if test:
-        time.sleep(2)
+        await asyncio.sleep(2)  # <-- асинхронная задержка
         failed_tx = {
             "id": str(uuid.uuid4()),
             "from": req.from_account,
@@ -58,7 +56,7 @@ async def transfer(req: TransferRequest, test: bool = Query(False)):
             "amount": req.amount,
             "status": "declined",
             "reason": "Тестовый отказ",
-            "timestamp": time.time()
+            "timestamp": asyncio.get_event_loop().time()
         }
         transactions.append(failed_tx)
         logging.warning(f"⚠️ Отказ (тест): {failed_tx}")
@@ -74,7 +72,7 @@ async def transfer(req: TransferRequest, test: bool = Query(False)):
             "amount": req.amount,
             "status": "declined",
             "reason": "Недостаточно средств",
-            "timestamp": time.time()
+            "timestamp": asyncio.get_event_loop().time()
         }
         transactions.append(failed_tx)
         logging.warning(f"❌ Отказ: {failed_tx}")
@@ -90,7 +88,7 @@ async def transfer(req: TransferRequest, test: bool = Query(False)):
         "to": req.to_account,
         "amount": req.amount,
         "status": "success",
-        "timestamp": time.time()
+        "timestamp": asyncio.get_event_loop().time()
     }
     transactions.append(success_tx)
     logging.info(f"✅ Успех: {success_tx}")
