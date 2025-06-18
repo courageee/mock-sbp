@@ -17,10 +17,10 @@ class TransferRequest(BaseModel):
 
 # --- ХРАНИЛИЩА ---
 accounts = {
-    "user1": 50000.0,
-    "user2": 0.0,
-    "user3": 50000.0,
-    "user4": 50000.0
+    "user1": 500000.0,
+    "user2": 100000.0,
+    "user3": 500000.0,
+    "user4": 500000.0
 }
 transactions = []
 
