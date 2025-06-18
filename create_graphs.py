@@ -7,16 +7,16 @@ import os
 
 # Временные границы для каждого этапа нагрузки (в секундах от начала)
 stage_boundaries = {
-    # "stage_1_50vus": (0, 20), # ramp-test
-    # "stage_2_200vus": (20, 40),
-    # "stage_3_500vus": (40, 60),
-    # "stage_4_510vus": (60, 90),
-    # "stage_5_cooldown": (90, 110),
+    "stage_1_50vus": (0, 20), # ramp-test
+    "stage_2_200vus": (20, 40),
+    "stage_3_500vus": (40, 60),
+    "stage_4_510vus": (60, 90),
+    "stage_5_cooldown": (90, 110),
 
-    "stage_1_0vus": (0, 2), # spike-test
-    "stage_2_500vus": (2, 3),
-    "stage_3_500vus": (3, 23),
-    "stage_4_0vus": (23, 25),
+    # "stage_1_0vus": (0, 2), # spike-test
+    # "stage_2_500vus": (2, 3),
+    # "stage_3_500vus": (3, 13),
+    # "stage_4_0vus": (13, 15),
 
     # "stage_1_100vus": (0, 60), # stress test
     # "stage_2_200vus": (60, 120),
@@ -25,7 +25,7 @@ stage_boundaries = {
     # "stage_5_500vus": (240, 360),
     # "stage_6_0vus": (360, 420),
 
-    # "stage_1_100vus": (0, 600), # soak test
+    # "stage_1_100vus": (0, 300), # soak test
 
     # "stage_1_100vus": (0, 15), # wave test
     # "stage_2_300vus": (15, 30),
@@ -116,7 +116,11 @@ labels = [datetime.fromtimestamp(t).strftime('%H:%M:%S') for t in sorted_times]
 
 plt.figure(figsize=(10, 4))
 plt.plot(labels, counts, marker='o')
-plt.xticks(rotation=45)
+
+# Ограничим количество X-меток до 10
+step = max(1, len(labels) // 10)
+plt.xticks(labels[::step], rotation=45)
+
 plt.title("Число транзакций по секундам")
 plt.xlabel("Время")
 plt.ylabel("Количество транзакций")
